@@ -108,6 +108,7 @@ class TaskSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Progress must be between 0 and 100.")
         return value
 
+<<<<<<< HEAD
     def to_representation(self, instance):
         data = super().to_representation(instance)
         has_submission = bool(instance.submission_file)
@@ -115,6 +116,8 @@ class TaskSerializer(serializers.ModelSerializer):
         data["progress"] = 100 if has_submission else 0
         return data
 
+=======
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
     def update(self, instance, validated_data):
         if "progress" in validated_data and validated_data["progress"] != instance.progress:
             instance.last_progress_update = timezone.now()

@@ -48,18 +48,30 @@ class Task(models.Model):
 
     @property
     def is_overdue(self):
+<<<<<<< HEAD
         return not self.submission_file and self.deadline < timezone.now()
 
     @property
     def due_within_24_hours(self):
         if self.submission_file:
+=======
+        return self.status != "Completed" and self.deadline < timezone.now()
+
+    @property
+    def due_within_24_hours(self):
+        if self.status == "Completed":
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
             return False
         now = timezone.now()
         return now <= self.deadline <= now + timezone.timedelta(hours=24)
 
     @property
     def needs_progress_reminder(self):
+<<<<<<< HEAD
         if self.submission_file:
+=======
+        if self.status == "Completed":
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
             return False
         last_update = self.last_progress_update or self.updated_at
         return last_update < timezone.now() - timezone.timedelta(days=2)

@@ -1,6 +1,10 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+<<<<<<< HEAD
 from django.db.models import Case, Count, IntegerField, Q, Value, When
+=======
+from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
 from django.utils import timezone
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -31,6 +35,7 @@ class LoginView(APIView):
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
+<<<<<<< HEAD
         expected_role = request.data.get("role")
         user = authenticate(request, username=username, password=password)
         if user is None:
@@ -42,6 +47,11 @@ class LoginView(APIView):
                 {"detail": f"This account is an {label} account. Please use the correct login panel."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+=======
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return Response({"detail": "Invalid username or password."}, status=status.HTTP_400_BAD_REQUEST)
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
         login(request, user)
         return Response(UserSerializer(user).data)
 
@@ -115,6 +125,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsAdminOrAssignedIntern]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
+<<<<<<< HEAD
     def create(self, request, *args, **kwargs):
         if not request.user.is_staff:
             return Response(
@@ -123,6 +134,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
         return super().create(request, *args, **kwargs)
 
+=======
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
     def get_queryset(self):
         queryset = Task.objects.select_related("assigned_user", "created_by").prefetch_related(
             "comments__author",
@@ -138,6 +151,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         if search:
             queryset = queryset.filter(Q(title__icontains=search) | Q(description__icontains=search))
+<<<<<<< HEAD
         if status_filter == "Completed":
             queryset = queryset.filter(submission_file__isnull=False).exclude(submission_file="")
         elif status_filter == "Pending":
@@ -154,6 +168,16 @@ class TaskViewSet(viewsets.ModelViewSet):
                 open_submission_filter,
                 deadline__range=(timezone.now(), timezone.now() + timezone.timedelta(hours=24)),
             )
+=======
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if priority:
+            queryset = queryset.filter(priority=priority)
+        if deadline == "overdue":
+            queryset = queryset.filter(deadline__lt=timezone.now()).exclude(status="Completed")
+        elif deadline == "next24":
+            queryset = queryset.filter(deadline__range=(timezone.now(), timezone.now() + timezone.timedelta(hours=24)))
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
 
         return queryset.annotate(
             priority_rank=Case(
@@ -181,12 +205,24 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         original = self.get_object()
+<<<<<<< HEAD
         original_assigned_user = original.assigned_user
         task = serializer.save(
             status="Completed" if original.submission_file else "Pending",
             progress=100 if original.submission_file else 0,
         )
         messages = []
+=======
+        original_status = original.status
+        original_progress = original.progress
+        original_assigned_user = original.assigned_user
+        task = serializer.save()
+        messages = []
+        if original_status != task.status:
+            messages.append(("status_changed", f"Status changed from {original_status} to {task.status}."))
+        if original_progress != task.progress:
+            messages.append(("progress_updated", f"Progress updated from {original_progress}% to {task.progress}%."))
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
         if original_assigned_user != task.assigned_user:
             messages.append(("assigned", f"Task reassigned to {task.assigned_user.username}."))
         if not messages:
@@ -200,6 +236,13 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer = TaskCommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         comment = serializer.save(task=task, author=request.user)
+<<<<<<< HEAD
+=======
+        if comment.progress is not None:
+            task.progress = comment.progress
+            task.last_progress_update = timezone.now()
+            task.save(update_fields=["progress", "last_progress_update", "updated_at"])
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
         ActivityLog.objects.create(
             task=task,
             actor=request.user,
@@ -219,8 +262,11 @@ class TaskViewSet(viewsets.ModelViewSet):
         uploaded_file = request.FILES.get("file")
         if uploaded_file is None:
             return Response({"detail": "Please choose a file to upload."}, status=status.HTTP_400_BAD_REQUEST)
+<<<<<<< HEAD
         if uploaded_file.content_type != "application/pdf" and not uploaded_file.name.lower().endswith(".pdf"):
             return Response({"detail": "Only PDF submissions are allowed."}, status=status.HTTP_400_BAD_REQUEST)
+=======
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
 
         task.submission_file = uploaded_file
         task.status = "Completed"
@@ -281,6 +327,7 @@ class ActivityLogViewSet(mixins.DestroyModelMixin, viewsets.ReadOnlyModelViewSet
 def dashboard(request):
     base = Task.objects.all() if request.user.is_staff else Task.objects.filter(assigned_user=request.user)
     now = timezone.now()
+<<<<<<< HEAD
     total = base.count()
     completed = base.filter(submission_file__isnull=False).exclude(submission_file="").count()
     pending = total - completed
@@ -289,6 +336,14 @@ def dashboard(request):
     overdue = open_tasks.filter(deadline__lt=now).count()
     high_priority = open_tasks.filter(priority="High").count()
     avg_progress = (completed / total) * 100 if total else 0
+=======
+    status_counts = dict(base.values_list("status").annotate(total=Count("id")))
+    total = base.count()
+    completed = status_counts.get("Completed", 0)
+    overdue = base.filter(deadline__lt=now).exclude(status="Completed").count()
+    high_priority = base.filter(priority="High").exclude(status="Completed").count()
+    avg_progress = base.aggregate(avg=Avg("progress"))["avg"] or 0
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
 
     payload = {
         "total_tasks": total,
@@ -306,11 +361,20 @@ def dashboard(request):
                 "username": row["assigned_user__username"],
                 "total": row["total"],
                 "completed": row["completed"],
+<<<<<<< HEAD
                 "avg_progress": round((row["completed"] / row["total"]) * 100, 1) if row["total"] else 0,
             }
             for row in base.values("assigned_user", "assigned_user__username").annotate(
                 total=Count("id"),
                 completed=Count("id", filter=Q(submission_file__isnull=False) & ~Q(submission_file="")),
+=======
+                "avg_progress": round(row["avg_progress"] or 0, 1),
+            }
+            for row in base.values("assigned_user", "assigned_user__username").annotate(
+                total=Count("id"),
+                completed=Count("id", filter=Q(status="Completed")),
+                avg_progress=Avg("progress"),
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
             )
         ]
 
@@ -323,10 +387,16 @@ def alerts(request):
     base = Task.objects.all() if request.user.is_staff else Task.objects.filter(assigned_user=request.user)
     now = timezone.now()
     warning_deadline = now + timezone.timedelta(hours=24)
+<<<<<<< HEAD
     open_tasks = base.filter(Q(submission_file__isnull=True) | Q(submission_file=""))
     overdue_tasks = open_tasks.filter(deadline__lt=now)
     due_soon = open_tasks.filter(deadline__range=(now, warning_deadline))
     inactivity = open_tasks.filter(updated_at__lt=now - timezone.timedelta(days=2))
+=======
+    overdue_tasks = base.filter(deadline__lt=now).exclude(status="Completed")
+    due_soon = base.filter(deadline__range=(now, warning_deadline)).exclude(status="Completed")
+    inactivity = base.filter(updated_at__lt=now - timezone.timedelta(days=2)).exclude(status="Completed")
+>>>>>>> 2a7d8f410b51eeac078385d3560f6cde3e29435b
 
     return Response(
         {
